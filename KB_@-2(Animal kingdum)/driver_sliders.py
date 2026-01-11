@@ -28,8 +28,33 @@ def register_props():
     )
 
     bpy.types.Scene.slider_3 = bpy.props.FloatProperty(
-        name="Unused",
+        name="Extra",
         min=0.0, max=1.0,
+        default=0.0
+    )
+
+    # 🔹 NEW SLIDERS (-100 to +100)
+    bpy.types.Scene.slider_4 = bpy.props.FloatProperty(
+        name="Elephant",
+        min=-100.0, max=100.0,
+        default=0.0
+    )
+
+    bpy.types.Scene.slider_5 = bpy.props.FloatProperty(
+        name="Snake",
+        min=-100.0, max=100.0,
+        default=0.0
+    )
+
+    bpy.types.Scene.slider_6 = bpy.props.FloatProperty(
+        name="Frog",
+        min=-100.0, max=100.0,
+        default=0.0
+    )
+
+    bpy.types.Scene.slider_7 = bpy.props.FloatProperty(
+        name="Ant",
+        min=-100.0, max=100.0,
         default=0.0
     )
 
@@ -38,10 +63,14 @@ def unregister_props():
     del bpy.types.Scene.ik_fk_switch
     del bpy.types.Scene.slider_2
     del bpy.types.Scene.slider_3
+    del bpy.types.Scene.slider_4
+    del bpy.types.Scene.slider_5
+    del bpy.types.Scene.slider_6
+    del bpy.types.Scene.slider_7
 
 
 # ------------------------------------------------
-# SAFE RESET OPERATOR (WORKING FK→IK)
+# SAFE RESET OPERATOR (POSE PRESERVE ONLY)
 # ------------------------------------------------
 class DRIVER_OT_reset_slider_2_safe(bpy.types.Operator):
     bl_idname = "driver.reset_slider_2_safe"
@@ -57,17 +86,17 @@ class DRIVER_OT_reset_slider_2_safe(bpy.types.Operator):
         scene = context.scene
         obj = context.object
 
-        # 1️⃣ Store evaluated pose matrices
+        # Store evaluated pose matrices
         bone_matrices = {
             pb.name: pb.matrix.copy()
             for pb in obj.pose.bones
         }
 
-        # 2️⃣ Reset slider (drivers update here)
+        # Reset slider
         scene.slider_2 = 0.0
         context.view_layer.update()
 
-        # 3️⃣ Restore full pose (THIS is the magic)
+        # Restore pose
         for pb in obj.pose.bones:
             mat = bone_matrices.get(pb.name)
             if mat:
@@ -102,6 +131,14 @@ class VIEW3D_PT_driver_slider_panel(bpy.types.Panel):
         )
 
         layout.prop(scene, "slider_3", slider=True)
+
+        layout.separator()
+        layout.label(text="Extra Sliders")
+
+        layout.prop(scene, "slider_4", slider=True)
+        layout.prop(scene, "slider_5", slider=True)
+        layout.prop(scene, "slider_6", slider=True)
+        layout.prop(scene, "slider_7", slider=True)
 
 
 # ------------------------------------------------
