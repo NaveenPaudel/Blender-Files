@@ -1,10 +1,10 @@
 bl_info = {
     "name": "Driver Sliders with Safe Reset (Matrix-Based)",
     "author": "Santosh Wagle",
-    "version": (1, 2),
+    "version": (1, 3),
     "blender": (5, 0, 0),
     "location": "View3D > Sidebar > Driver Tools",
-    "description": "Driver sliders with FK→IK reset that preserves pose using matrix restore",
+    "description": "Driver sliders with FK→IK reset + optional NLA strip driver binding",
     "category": "Animation",
 }
 
@@ -33,7 +33,6 @@ def register_props():
         default=0.0
     )
 
-    # 🔹 NEW SLIDERS (-100 to +100)
     bpy.types.Scene.slider_4 = bpy.props.FloatProperty(
         name="Elephant",
         min=-100.0, max=100.0,
@@ -70,7 +69,7 @@ def unregister_props():
 
 
 # ------------------------------------------------
-# SAFE RESET OPERATOR (POSE PRESERVE ONLY)
+# SAFE RESET OPERATOR (UNCHANGED)
 # ------------------------------------------------
 class DRIVER_OT_reset_slider_2_safe(bpy.types.Operator):
     bl_idname = "driver.reset_slider_2_safe"
@@ -86,23 +85,52 @@ class DRIVER_OT_reset_slider_2_safe(bpy.types.Operator):
         scene = context.scene
         obj = context.object
 
-        # Store evaluated pose matrices
         bone_matrices = {
             pb.name: pb.matrix.copy()
             for pb in obj.pose.bones
         }
 
-        # Reset slider
         scene.slider_2 = 0.0
         context.view_layer.update()
 
-        # Restore pose
         for pb in obj.pose.bones:
             mat = bone_matrices.get(pb.name)
             if mat:
                 pb.matrix = mat
 
         context.view_layer.update()
+        return {'FINISHED'}
+
+
+# ------------------------------------------------
+# 🆕 NLA DRIVER BIND OPERATOR (ADDED)
+# ------------------------------------------------
+class DRIVER_OT_bind_nla_strip(bpy.types.Operator):
+    bl_idname = "driver.bind_nla_strip"
+    bl_label = "Bind Selected NLA Strips"
+    bl_description = "Bind selected NLA strip influence to slider_2"
+
+    def execute(self, context):
+        obj = context.object
+        if not obj or not obj.animation_data:
+            return {'CANCELLED'}
+
+        for track in obj.animation_data.nla_tracks:
+            for strip in track.strips:
+                if strip.select:
+                    fcurve = strip.driver_add("influence")
+                    driver = fcurve.driver
+                    driver.type = 'SCRIPTED'
+                    driver.expression = "var"
+
+                    var = driver.variables.new()
+                    var.name = "var"
+                    var.type = 'SINGLE_PROP'
+                    target = var.targets[0]
+                    target.id_type = 'SCENE'
+                    target.id = context.scene
+                    target.data_path = "slider_2"
+
         return {'FINISHED'}
 
 
@@ -124,11 +152,7 @@ class VIEW3D_PT_driver_slider_panel(bpy.types.Panel):
 
         row = layout.row(align=True)
         row.prop(scene, "slider_2", slider=True)
-        row.operator(
-            "driver.reset_slider_2_safe",
-            text="",
-            icon='LOOP_BACK'
-        )
+        row.operator("driver.reset_slider_2_safe", text="", icon='LOOP_BACK')
 
         layout.prop(scene, "slider_3", slider=True)
 
@@ -140,6 +164,9 @@ class VIEW3D_PT_driver_slider_panel(bpy.types.Panel):
         layout.prop(scene, "slider_6", slider=True)
         layout.prop(scene, "slider_7", slider=True)
 
+        layout.separator()
+        layout.operator("driver.bind_nla_strip", icon='NLA')
+
 
 # ------------------------------------------------
 # REGISTER
@@ -147,6 +174,7 @@ class VIEW3D_PT_driver_slider_panel(bpy.types.Panel):
 classes = (
     VIEW3D_PT_driver_slider_panel,
     DRIVER_OT_reset_slider_2_safe,
+    DRIVER_OT_bind_nla_strip,
 )
 
 
